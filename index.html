@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Bingo Balls Caller</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #202020;
+        --muted: #aaa9a3;
+        --black: #ffffff;
+        --panel: #ffffff;
+        --button: #202020;
+        --button-ink: #ffffff;
+        --called: #ffffff;
+        --called-ink: #202020;
+        --waiting: #222;
+        --accent: #202020;
+        --danger: #f27457;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--black);
+        color: var(--ink);
+        font-family: Arial Black, Arial, Helvetica, sans-serif;
+        letter-spacing: 0;
+      }
+
+      button {
+        border: 0;
+        font: inherit;
+      }
+
+      .app {
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(18px, 3svh, 28px);
+        padding: calc(18px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+        overflow-x: hidden;
+      }
+
+      .stage {
+        flex: 1 0 auto;
+        display: grid;
+        grid-template-rows: minmax(50px, auto) auto auto;
+        align-content: center;
+        gap: clamp(18px, 4svh, 30px);
+        min-height: min(62svh, 620px);
+      }
+
+      .status {
+        min-height: clamp(50px, 8svh, 80px);
+        display: grid;
+        place-items: center;
+        text-align: center;
+        font-size: clamp(36px, 13vw, 76px);
+        line-height: 0.9;
+        text-transform: uppercase;
+      }
+
+      .ball-wrap {
+        display: grid;
+        place-items: center;
+        perspective: 900px;
+      }
+
+      .ball {
+        width: min(76vw, 360px);
+        aspect-ratio: 1;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        position: relative;
+        background:
+          radial-gradient(circle at 33% 22%, rgba(255, 255, 255, 0.08), transparent 18%),
+          #202020;
+        border: clamp(8px, 2vw, 12px) solid #202020;
+        box-shadow:
+          inset 0 0 0 clamp(5px, 1.3vw, 8px) #202020,
+          inset 0 0 0 clamp(9px, 2.1vw, 14px) #ffffff,
+          0 18px 42px rgba(0, 0, 0, 0.1);
+        transform-style: preserve-3d;
+      }
+
+      .ball.spinning {
+        animation: tumble 0.42s linear infinite;
+      }
+
+      @keyframes tumble {
+        0% {
+          transform: rotateY(0deg) rotateX(0deg) scale(1);
+          filter: blur(0);
+        }
+        45% {
+          transform: rotateY(126deg) rotateX(12deg) scale(0.98);
+          filter: blur(0.8px);
+        }
+        100% {
+          transform: rotateY(360deg) rotateX(0deg) scale(1);
+          filter: blur(0);
+        }
+      }
+
+      .ball-content {
+        display: grid;
+        place-items: center;
+        transform: translateZ(28px);
+        color: #ffffff;
+      }
+
+      .letter {
+        font-size: clamp(28px, 7vw, 42px);
+        line-height: 0.9;
+      }
+
+      .number {
+        margin-top: clamp(8px, 1.8vw, 14px);
+        font-size: clamp(108px, 28vw, 168px);
+        line-height: 0.78;
+      }
+
+      .empty .letter {
+        font-size: clamp(26px, 7vw, 42px);
+      }
+
+      .empty .number {
+        font-size: clamp(34px, 9vw, 56px);
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .control {
+        min-height: 58px;
+        border-radius: 999px;
+        padding: 0 14px;
+        background: var(--button);
+        color: var(--button-ink);
+        box-shadow: none;
+        cursor: pointer;
+        transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+        white-space: nowrap;
+      }
+
+      .control:active {
+        transform: translateY(2px) scale(0.98);
+      }
+
+      .control:disabled {
+        cursor: wait;
+        opacity: 0.45;
+      }
+
+      .control.reset {
+        background: #202020;
+        color: #ffffff;
+      }
+
+      .control.ready {
+        background: #202020;
+        color: #ffffff;
+      }
+
+      .called-section {
+        background: #ffffff;
+        color: #111;
+        margin: 0 -16px calc(-20px - env(safe-area-inset-bottom));
+        padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
+        border-radius: 0;
+      }
+
+      .called-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 2px 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(20px, 5.8vw, 28px);
+        line-height: 1;
+      }
+
+      .count {
+        color: #555;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 800;
+        font-size: 15px;
+      }
+
+      .called-grid {
+        display: grid;
+        gap: 8px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .row-label {
+        font-size: clamp(26px, 8vw, 36px);
+        line-height: 1;
+        text-align: center;
+      }
+
+      .numbers {
+        display: grid;
+        grid-template-columns: repeat(15, minmax(0, 1fr));
+        gap: 5px;
+      }
+
+      .chip {
+        aspect-ratio: 1;
+        min-width: 0;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        background: #eeeeea;
+        color: #86837c;
+        font-size: clamp(10px, 2.75vw, 16px);
+        line-height: 1;
+        font-weight: 900;
+      }
+
+      .chip.called {
+        background: var(--called-ink);
+        color: var(--called);
+      }
+
+      .chip.latest {
+        background: var(--called-ink);
+        color: var(--called);
+        box-shadow: 0 0 0 3px #ffffff, 0 0 0 6px #202020;
+      }
+
+      @media (min-width: 720px) {
+        .app {
+          max-width: 640px;
+          margin: 0 auto;
+          padding-left: 24px;
+          padding-right: 24px;
+        }
+
+        .called-section {
+          margin-left: -24px;
+          margin-right: -24px;
+          padding-left: 22px;
+          padding-right: 22px;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .control {
+          min-height: 54px;
+          padding: 0 12px;
+          font-size: 15px;
+        }
+
+        .row {
+          grid-template-columns: 30px 1fr;
+        }
+
+        .numbers {
+          gap: 4px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ball.spinning {
+          animation: pulse 0.7s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+          50% {
+            transform: scale(0.98);
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="stage" aria-label="Bingo caller">
+        <div class="status" id="status">Ready</div>
+
+        <div class="ball-wrap">
+          <div class="ball empty" id="ball" aria-live="polite" aria-label="Ready">
+            <div class="ball-content">
+              <div class="letter" id="letter">BINGO</div>
+              <div class="number" id="number">Balls</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="control ready" id="readyButton" type="button">Ready to play</button>
+          <button class="control reset" id="resetButton" type="button">Reset</button>
+        </div>
+      </section>
+
+      <section class="called-section" aria-label="Called numbers">
+        <div class="called-header">
+          <h1>Called numbers</h1>
+          <div class="count" id="count">0 of 75</div>
+        </div>
+        <div class="called-grid" id="calledGrid"></div>
+      </section>
+    </main>
+
+    <script>
+      const ranges = [
+        ["B", 1, 15],
+        ["I", 16, 30],
+        ["N", 31, 45],
+        ["G", 46, 60],
+        ["O", 61, 75]
+      ];
+
+      const allBalls = ranges.flatMap(([letter, start, end]) =>
+        Array.from({ length: end - start + 1 }, (_, index) => ({
+          letter,
+          number: start + index,
+          id: `${letter}${start + index}`
+        }))
+      );
+
+      const called = new Set();
+      let latestId = null;
+      let isSpinning = false;
+      let isGameStarted = false;
+      let audioContext = null;
+      let noiseSource = null;
+      let noiseGain = null;
+      let preferredVoice = null;
+
+      const statusEl = document.getElementById("status");
+      const ballEl = document.getElementById("ball");
+      const letterEl = document.getElementById("letter");
+      const numberEl = document.getElementById("number");
+      const readyButton = document.getElementById("readyButton");
+      const resetButton = document.getElementById("resetButton");
+      const calledGrid = document.getElementById("calledGrid");
+      const countEl = document.getElementById("count");
+
+      function buildCalledGrid() {
+        calledGrid.innerHTML = "";
+        for (const [letter, start, end] of ranges) {
+          const row = document.createElement("div");
+          row.className = "row";
+
+          const label = document.createElement("div");
+          label.className = "row-label";
+          label.textContent = letter;
+
+          const numbers = document.createElement("div");
+          numbers.className = "numbers";
+
+          for (let number = start; number <= end; number += 1) {
+            const chip = document.createElement("div");
+            chip.className = "chip";
+            chip.id = `chip-${letter}${number}`;
+            chip.textContent = number;
+            numbers.appendChild(chip);
+          }
+
+          row.append(label, numbers);
+          calledGrid.appendChild(row);
+        }
+      }
+
+      function getBall(number) {
+        return allBalls.find((ball) => ball.number === number);
+      }
+
+      function randomBall(list = allBalls) {
+        return list[Math.floor(Math.random() * list.length)];
+      }
+
+      function setBall(ball, label = `${ball.letter} ${ball.number}`) {
+        ballEl.classList.remove("empty");
+        letterEl.textContent = ball.letter;
+        numberEl.textContent = ball.number;
+        ballEl.setAttribute("aria-label", label);
+      }
+
+      function setReadyScreen() {
+        statusEl.textContent = "Ready";
+        ballEl.classList.add("empty");
+        letterEl.textContent = "BINGO";
+        numberEl.textContent = "Balls";
+        ballEl.setAttribute("aria-label", "Ready");
+      }
+
+      function updatePrimaryButton() {
+        readyButton.textContent = isGameStarted ? "Next Call" : "Ready to play";
+        readyButton.classList.toggle("ready", !isGameStarted);
+      }
+
+      function updateCalledGrid() {
+        for (const ball of allBalls) {
+          const chip = document.getElementById(`chip-${ball.id}`);
+          chip.classList.toggle("called", called.has(ball.id));
+          chip.classList.toggle("latest", latestId === ball.id);
+        }
+        countEl.textContent = `${called.size} of 75`;
+      }
+
+      function ensureAudio() {
+        if (audioContext) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        audioContext = new AudioContext();
+      }
+
+      function getPreferredVoice() {
+        if (!("speechSynthesis" in window)) return null;
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices.length) return null;
+        const englishVoices = voices.filter((voice) => /^en(-|_|$)/i.test(voice.lang));
+        const candidates = englishVoices.length ? englishVoices : voices;
+        const maleHints = [
+          "male",
+          "daniel",
+          "david",
+          "fred",
+          "george",
+          "gordon",
+          "james",
+          "mark",
+          "matthew",
+          "ralph",
+          "richard",
+          "thomas",
+          "tom"
+        ];
+        preferredVoice = candidates.find((voice) => {
+          const name = voice.name.toLowerCase();
+          return maleHints.some((hint) => name.includes(hint));
+        }) || candidates[0];
+        return preferredVoice;
+      }
+
+      function warmVoice() {
+        if (!("speechSynthesis" in window)) return;
+        getPreferredVoice();
+      }
+
+      function speakCall(ball) {
+        if (!("speechSynthesis" in window)) return;
+        window.speechSynthesis.cancel();
+
+        const announcement = new SpeechSynthesisUtterance(`${ball.letter} ${ball.number}`);
+        announcement.voice = preferredVoice || getPreferredVoice();
+        announcement.lang = announcement.voice?.lang || "en-US";
+        announcement.rate = 0.82;
+        announcement.pitch = 0.78;
+        announcement.volume = 1;
+
+        window.setTimeout(() => {
+          window.speechSynthesis.speak(announcement);
+        }, 260);
+      }
+
+      function clickSound() {
+        ensureAudio();
+        if (!audioContext) return;
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = "square";
+        oscillator.frequency.setValueAtTime(520, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(180, audioContext.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.055, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.09);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.1);
+      }
+
+      function startRaffleSound() {
+        ensureAudio();
+        if (!audioContext) return;
+
+        const bufferSize = audioContext.sampleRate * 1.2;
+        const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i += 1) {
+          output[i] = (Math.random() * 2 - 1) * 0.36;
+        }
+
+        const source = audioContext.createBufferSource();
+        const filter = audioContext.createBiquadFilter();
+        const gain = audioContext.createGain();
+        source.buffer = buffer;
+        source.loop = true;
+        filter.type = "bandpass";
+        filter.frequency.value = 850;
+        filter.Q.value = 0.8;
+        gain.gain.value = 0.045;
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioContext.destination);
+        source.start();
+        noiseSource = source;
+        noiseGain = gain;
+      }
+
+      function stopRaffleSound() {
+        if (!noiseSource || !audioContext) return;
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.18);
+        noiseSource.stop(audioContext.currentTime + 0.2);
+        noiseSource = null;
+        noiseGain = null;
+      }
+
+      function doneSound() {
+        ensureAudio();
+        if (!audioContext) return;
+        [330, 440, 660].forEach((frequency, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          const start = audioContext.currentTime + index * 0.07;
+          oscillator.type = "triangle";
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.001, start);
+          gain.gain.exponentialRampToValueAtTime(0.075, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.14);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(start);
+          oscillator.stop(start + 0.16);
+        });
+      }
+
+      function setButtons(disabled) {
+        readyButton.disabled = disabled;
+        resetButton.disabled = disabled;
+      }
+
+      function primaryAction() {
+        if (isSpinning) return;
+        if (isGameStarted) {
+          nextCall();
+          return;
+        }
+        clickSound();
+        warmVoice();
+        isGameStarted = true;
+        statusEl.textContent = "Ready";
+        updatePrimaryButton();
+        readyButton.setAttribute("aria-label", "Next Call");
+      }
+
+      function resetState() {
+        called.clear();
+        latestId = null;
+        isGameStarted = false;
+        setReadyScreen();
+        updateCalledGrid();
+        updatePrimaryButton();
+        setButtons(false);
+        readyButton.setAttribute("aria-label", "Ready to play");
+      }
+
+      function resetGame() {
+        if (isSpinning) return;
+        clickSound();
+        resetState();
+      }
+
+      function nextCall() {
+        if (isSpinning) return;
+        const remaining = allBalls.filter((ball) => !called.has(ball.id));
+        if (!remaining.length) {
+          statusEl.textContent = "Complete";
+          readyButton.textContent = "Complete";
+          readyButton.disabled = true;
+          doneSound();
+          return;
+        }
+
+        isSpinning = true;
+        setButtons(true);
+        statusEl.textContent = "Calling";
+        ballEl.classList.add("spinning");
+        startRaffleSound();
+
+        const spinFor = 3000 + Math.random() * 3000;
+        const tickEvery = 82;
+        const tick = window.setInterval(() => {
+          setBall(randomBall(), "Shuffling bingo balls");
+        }, tickEvery);
+
+        window.setTimeout(() => {
+          window.clearInterval(tick);
+          stopRaffleSound();
+
+          const selected = randomBall(remaining);
+          called.add(selected.id);
+          latestId = selected.id;
+          setBall(selected);
+          statusEl.textContent = "Called";
+          ballEl.classList.remove("spinning");
+          updateCalledGrid();
+          doneSound();
+          speakCall(selected);
+
+          isSpinning = false;
+          setButtons(false);
+        }, spinFor);
+      }
+
+      readyButton.addEventListener("click", primaryAction);
+      resetButton.addEventListener("click", resetGame);
+
+      buildCalledGrid();
+      resetState();
+    </script>
+  </body>
+</html>

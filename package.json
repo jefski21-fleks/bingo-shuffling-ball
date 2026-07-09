@@ -1,0 +1,16 @@
+{
+  "name": "bingo-balls-caller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A mobile-first bingo ball caller app with animation, sound effects, and voice announcements.",
+  "scripts": {
+    "start": "python3 -m http.server 4173"
+  },
+  "keywords": [
+    "bingo",
+    "caller",
+    "mobile",
+    "github-pages"
+  ],
+  "license": "UNLICENSED"
+}
